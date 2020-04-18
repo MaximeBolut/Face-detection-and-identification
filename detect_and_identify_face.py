@@ -1,3 +1,8 @@
+import h5py 
+import os
+import numpy as np
+from numpy import genfromtxt
+from fr_utils import *
 
 from keras.models import Sequential,load_model
 from keras.layers import Conv2D, ZeroPadding2D, Activation, Input, concatenate
@@ -10,26 +15,24 @@ from keras.initializers import glorot_uniform
 from keras.engine.topology import Layer
 from keras import backend as K
 K.set_image_data_format('channels_first')
-import cv2
-import os
-import numpy as np
-from numpy import genfromtxt
-import pandas as pd
+
 import tensorflow as tf
-from fr_utils import *
+
 from inception_blocks_v2 import *
 
 
 import skimage
 from skimage import io, data # to read and load images
-import matplotlib.pyplot as plt  # to show images
-import matplotlib.patches as patches
 from skimage.transform import resize
 from skimage.feature import Cascade
 
-import h5py
+import matplotlib.pyplot as plt  # to show images
+import matplotlib.patches as patches
 
+
+#Here is the image you want to use to detect, extract and identify face(s)... 
 filename = os.path.join('C:\\coding\\image processing', 'mama.jpg')
+#filename=input(print("give the image you want to analyse'))
 image = io.imread(filename)
 
 
@@ -70,29 +73,24 @@ def getFace(d, image):
   return face
 
 
-
 FRmodel = faceRecoModel(input_shape=(3, 96, 96))
 
-# GRADED FUNCTION: triplet_loss
 
+# GRADED FUNCTION: triplet_loss
 def triplet_loss(y_true, y_pred, alpha = 0.2):
     """
-    Implementation of the triplet loss as defined by formula 
-    
     Arguments:
     y_true -- true labels, required when you define a loss in Keras, you don't need it in this function.
     y_pred -- python list containing three objects:
             anchor -- the encodings for the anchor images, of shape (None, 128)
             positive -- the encodings for the positive images, of shape (None, 128)
             negative -- the encodings for the negative images, of shape (None, 128)
-    
     Returns:
     loss -- real number, value of the loss
     """
-    
+   
     anchor, positive, negative = y_pred[0], y_pred[1], y_pred[2]
     
-    ### START CODE HERE ### (≈ 4 lines)
     # Step 1: Compute the (encoding) distance between the anchor and the positive
     pos_dist =  tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), axis=-1)
     # Step 2: Compute the (encoding) distance between the anchor and the negative
@@ -101,25 +99,22 @@ def triplet_loss(y_true, y_pred, alpha = 0.2):
     basic_loss = tf.add(tf.subtract(pos_dist, neg_dist), alpha)
     # Step 4: Take the maximum of basic_loss and 0.0. Sum over the training examples.
     loss = tf.reduce_sum(tf.maximum(basic_loss, 0.0))
-    ### END CODE HERE ###
-    
+ 
     return loss
 
 
 #load pre trained model
 FRmodel.compile(optimizer = 'adam', loss = triplet_loss, metrics = ['accuracy'])
 load_weights_from_FaceNet(FRmodel)
-#FRmodel = load_model('nn4.small2.v7.h5')
 
-#database of registered people with their encoded face
+
+#database of registered people with their encoded face---PUT IMAGE OF PEOPLE YOU WANT TO IDENTIFY ( Front facing face, size of 96x96px) 
 database = {}
 database["maria"] = img_to_encoding("images/maria.jpg", FRmodel)
 database["max"] = img_to_encoding("images/maxdata.jpg", FRmodel)
 
 
-
 # GRADED FUNCTION: who_is_it
-
 def who_is_it(image_path, database, model):
     """
     Implements face recognition by finding who is the person on the image_path image.
@@ -148,7 +143,7 @@ def who_is_it(image_path, database, model):
         # Compute L2 distance between the target "encoding" and the current db_enc from the database. (≈ 1 line)
         dist = np.linalg.norm((encoding-db_enc))
 
-        # If this distance is less than the min_dist, then set min_dist to dist, and identity to name. (≈ 3 lines)
+        # If this distance is less than the min_dist, then set min_dist to dist, and identity to name.
         if dist < min_dist:
             min_dist = dist
             identity = name
@@ -174,12 +169,8 @@ for d in detected:
     face_scaled=resize(face,(96,96,3),anti_aliasing=True)
     io.imsave(str(i)+'.jpg', face_scaled)
 
-    '''
-    face_scaled=cv2.resize(face, (96,96))
-    cv2.imwrite(str(i)+'.jpg', face_scaled)  
-    '''
     path="C:\\coding\\facedetect\\"+str(i)+'.jpg'
-    #face_scaled = np.rollaxis(face_scaled, 2, 0) #to put channel first
+  
     min_dist, title = who_is_it(path, database, FRmodel)
     ax[i].imshow(face)
     ax[i].set_title(title + str(min_dist))
